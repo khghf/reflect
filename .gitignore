@@ -1,0 +1,8 @@
+.vs/
+x64/
+*.sln
+Reflect/GeneratedReflectionCode
+Reflect/x64
+*.vcxproj
+*.filters
+*.user

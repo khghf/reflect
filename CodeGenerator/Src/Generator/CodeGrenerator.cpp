@@ -10,7 +10,7 @@
 namespace reflect
 {
 	std::string CodeGrenerator::FileStorageFloder = "";
-	std::string_view GeneratedCppIncludes = "Src/Reflect/GeneratedCppIncludes.h";
+	std::string_view GeneratedCppIncludes = "Reflect/GeneratedCppIncludes.h";
 	const MetaFile* Info = nullptr;
 	void CodeGrenerator::GenerateCode()
 	{
@@ -30,8 +30,8 @@ namespace reflect
 
 		std::string savePath = FileStorageFloder.data();
 		savePath = savePath + "/"+ fileName;
-		std::string includePath = include_angled(savePath);
-		Push_backIncludeToFile(Util::ModifySuffix(Info->Path, "h"), includePath.substr(0, includePath.size()-1));
+		std::string includePath = include_angled(fileName);//include_angled会在末尾加上\n
+		InsertIncludeToFile(Util::ModifySuffix(Info->Path, "h"), includePath.substr(0, includePath.size()-1));
 		std::ofstream out(savePath, std::ios_base::trunc);
 		std::stringstream content;
 		content << "#pragma once\n";
@@ -48,7 +48,8 @@ namespace reflect
 
 				content << "class " + opertaorName + ";\n";
 				content << "#define REFLECT_BODY_" + metaClass.ReflectBodyLine + "()\\\n";
-				content << "friend class "+ opertaorName+";\n";
+				content << "friend class "+ opertaorName+";\\\n";
+				content << "typedef " + className +" ThisClass;\n";
 			}
 		}
 		out << content.str();
@@ -62,7 +63,7 @@ namespace reflect
 
 		std::ofstream out(savePath, std::ios_base::trunc);
 		std::stringstream content;
-		content << include_quotes(GeneratedCppIncludes.data());
+		content << include_angled(GeneratedCppIncludes.data());
 		content << include_quotes( Util::ModifySuffix(Info->Path,"h"));
 
 		const std::string rclass = "reflect::RClass";
@@ -74,7 +75,6 @@ namespace reflect
 		{
 			
 			const std::string& className = metaClass.Name;
-			//AAA_XXX_Operator,用于访问类的私有成员
 			int nameSpaceCount = metaClass.NameSpaces.size();
 			std::string nameSpace = "";
 			if (nameSpaceCount > 0)
@@ -91,7 +91,8 @@ namespace reflect
 					}
 				}
 			}
-			const std::string opertaorName= "AAA_" + className + "_Operator";
+			//AAA_XXX_Operator,用于访问类的私有成员
+			const std::string opertaorName = "AAA_" + className + "_Operator";
 			content << "class "+opertaorName + "\n";
 			content << "{\n";
 			content << "public:\n";
@@ -107,6 +108,11 @@ namespace reflect
 				content << "\tConstructRProperty(" + proName + "," + className + "," + nameSpace + ")\n";
 			}
 			content << "};\n";
+			//声明父类构造函数
+			for (const auto& superClass : metaClass.SuperClassesName)
+			{
+				content <<"extern "+ rclass + "*AAA_Construct_RClass_" + superClass.second + "();\n";
+			}
 
 			//将AAA_XXX_Operator内部的函数包装成普通函数
 			content << rclass+"*AAA_Construct_RClass_" + className + "()\n";
@@ -131,20 +137,37 @@ namespace reflect
 				content << "}\n";
 			}
 			//将信息收集到AAA_Construct_XXX_Statics中
-			content << "struct AAA_Construct_" + className + "_Statics\n";
+			const std::string structStatics = "AAA_Construct_"+ className+"_Statics";
+			content << "struct "+ structStatics+"\n";
 			content << "{\n";
+			if (metaClass.SuperClassesName.size() > 0)content << "\tstatic RClassConstructor SuperClass_Constructor[];\n";
 			content << "\tstatic RClassConstructor RClass_" + className + "_Constructor;\n";
 			if(metaClass.Functions.size()>0)content << "\tstatic RFunctionConstructor RFunction_" + className + "_Constructor[];\n";
 			if (metaClass.Properties.size() > 0)content << "\tstatic RPropertyConstructor RProperty_" + className + "_Constructor[];\n";
+			
+			content << "\tconst static uint32_t SuperClassNum;\n";
 			content << "\tconst static uint32_t FunctionNum;\n";
 			content << "\tconst static uint32_t PropertyNum;\n";
 			content << "};\n";
+
+
+				//SuperClass
+			if (metaClass.SuperClassesName.size() > 0)
+			{
+				content << "RClassConstructor " + structStatics + "::SuperClass_Constructor[]=\n";
+				content << "{\n";
+				for (const auto& superClass : metaClass.SuperClassesName)
+				{
+					content << "\tAAA_Construct_RClass_" + superClass.second + ",\n";
+				}
+				content << "};\n";
+			}
 				//RClass
-			content << "RClassConstructor AAA_Construct_" + className + "_Statics::RClass_" + className + "_Constructor = AAA_Construct_RClass_" + className + ";\n";
+			content << "RClassConstructor " + structStatics + "::RClass_" + className + "_Constructor = AAA_Construct_RClass_" + className + ";\n";
 				//RFunctions
 			if (metaClass.Functions.size() > 0)
 			{
-				content << "RFunctionConstructor AAA_Construct_" + className + "_Statics::RFunction_" + className + "_Constructor[]=\n";
+				content << "RFunctionConstructor " + structStatics + "::RFunction_" + className + "_Constructor[]=\n";
 				content << "{\n";
 				for (const auto& metaFun : metaClass.Functions)
 				{
@@ -157,7 +180,7 @@ namespace reflect
 				//RProperties
 			if (metaClass.Properties.size() > 0)
 			{
-				content << "RPropertyConstructor AAA_Construct_" + className + "_Statics::RProperty_" + className + "_Constructor[]=\n";
+				content << "RPropertyConstructor " + structStatics + "::RProperty_" + className + "_Constructor[]=\n";
 				content << "{\n";
 				for (const auto& metaPro : metaClass.Properties)
 				{
@@ -167,24 +190,30 @@ namespace reflect
 				}
 				content << "};\n";
 			}
+				//SuperClassNum
+			if (metaClass.SuperClassesName.size() > 0)content << "const uint32_t "+ structStatics+"::SuperClassNum = ARRAY_COUNT("+ structStatics+"::SuperClass_Constructor);\n";
+			else content << "const uint32_t "+ structStatics+"::SuperClassNum = 0;\n";
 				//FunctionNum
-			if (metaClass.Functions.size() > 0)content << "const uint32_t AAA_Construct_" + className + "_Statics::FunctionNum = ARRAY_COUNT(AAA_Construct_" + className + "_Statics::RFunction_" + className + "_Constructor);\n";
-			else content << "const uint32_t AAA_Construct_" + className + "_Statics::FunctionNum = 0;\n";
+			if (metaClass.Functions.size() > 0)content << "const uint32_t "+ structStatics+"::FunctionNum = ARRAY_COUNT("+ structStatics+"::RFunction_" + className + "_Constructor);\n";
+			else content << "const uint32_t "+ structStatics+"::FunctionNum = 0;\n";
 				//PropertyNum
-			if (metaClass.Properties.size() > 0)content << "const uint32_t AAA_Construct_" + className + "_Statics::PropertyNum = ARRAY_COUNT(AAA_Construct_" + className + "_Statics::RProperty_" + className + "_Constructor);\n";
-			else content << "const uint32_t AAA_Construct_" + className + "_Statics::PropertyNum = 0;\n";
+			if (metaClass.Properties.size() > 0)content << "const uint32_t "+ structStatics+"::PropertyNum = ARRAY_COUNT("+ structStatics+"::RProperty_" + className + "_Constructor);\n";
+			else content << "const uint32_t "+ structStatics+"::PropertyNum = 0;\n";
 			//将收集的信息转发注册
 			content << "static RegistrationInfo Collector_" + className + "=\n";
 			content << "{\n";
-			content << "\tAAA_Construct_" + className + "_Statics::RClass_" + className + "_Constructor,\n";
-			if (metaClass.Functions.size() > 0)content << "\tAAA_Construct_" + className + "_Statics::RFunction_" + className + "_Constructor,\n";
+			if (metaClass.SuperClassesName.size() > 0)content << "\t" + structStatics + "::SuperClass_Constructor,\n";
 			else content << "\tnullptr,\n";
-			if (metaClass.Properties.size() > 0)content << "\tAAA_Construct_" + className + "_Statics::RProperty_" + className + "_Constructor,\n";
+			content << "\t"+structStatics+"::RClass_" + className + "_Constructor,\n";
+			if (metaClass.Functions.size() > 0)content << "\t" + structStatics + "::RFunction_" + className + "_Constructor,\n";
 			else content << "\tnullptr,\n";
-			content << "\tAAA_Construct_" + className + "_Statics::FunctionNum,\n";
-			content << "\tAAA_Construct_" + className + "_Statics::PropertyNum\n";
+			if (metaClass.Properties.size() > 0)content << "\t" + structStatics + "::RProperty_" + className + "_Constructor,\n";
+			else content << "\tnullptr,\n";
+			content << "\t" + structStatics + "::SuperClassNum,\n";
+			content << "\t" + structStatics + "::FunctionNum,\n";
+			content << "\t" + structStatics + "::PropertyNum\n";
 			content << "};\n";
-			content << "static CollectRegistrationInfo Register (Collector_" + className + ");\n";
+			content << "static CollectRegistrationInfo Register_"+className+"(Collector_" + className + "); \n";
 		}
 		out << content.str();
 	}
@@ -199,7 +228,7 @@ namespace reflect
 		return "#include\"" + path + "\"\n";
 	}
 
-	void CodeGrenerator::Push_backIncludeToFile(const std::string& filePath, const std::string& includestr)
+	void CodeGrenerator::InsertIncludeToFile(const std::string& filePath, const std::string& includestr)
 	{
 		std::ifstream file(filePath, std::ios::in);
 		//先去掉可能存在的想要插入的头文件

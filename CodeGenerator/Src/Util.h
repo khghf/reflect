@@ -11,6 +11,7 @@ namespace reflect
 		static std::string CursorSpelling(CXCursor cursor);
 		static std::string CursorTypeSpelling(CXCursor cursor);
 		static std::string TypeSpelling(CXType type);
+		static bool		   IsTargetHeaderCursor(CXCursor cursor, const std::string& targetHeaderPath);
 		//返回行号列号
 		static void						GetCursorLocation(CXCursor cursor, uint32_t* out);
 		static void						GetCursorLocation(CXCursor cursor, uint32_t* line, uint32_t* col);
@@ -21,10 +22,12 @@ namespace reflect
 		static std::string				GetStrBehindLastChar(const std::string source, const char* ch);
 		static std::vector<std::string>	GetAllFilePath(const std::string& FloderPath, bool GetSubFloderFile = false);
 
+		static std::string	NormalizeFilePath(const std::string path);
 		static bool			SkipUtf8Bom(std::ifstream& file);
 		static void			RemoveUtf8Bom(std::string& content);
 		static bool			CretaFloderIfNotExist(const std::string folderPath);
 		static bool			IsFileExist(const std::string filePath);
+		static bool			IsDirectoryExist(const std::string filePath);
 		static std::string	ModifySuffix(const std::string& source, const std::string& suffix);
 	};
 

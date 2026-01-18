@@ -19,7 +19,6 @@ namespace reflect
 		std::string Name;
 		std::string ReturnName;
 		std::vector<std::pair<std::string, std::string>>Type_ParamName;
-
 		std::string ClassName;
 	};
 	struct MetaClass
@@ -31,6 +30,7 @@ namespace reflect
 		std::string FilePath;
 		std::vector<std::string>NameSpaces;
 		std::string ReflectBodyLine = "-1";
+		std::vector <std::pair <std::string, std::string >> SuperClassesName;
 	};
 	struct MetaFile
 	{

@@ -1,6 +1,5 @@
 ﻿#pragma once
-#include<string_view>
-
+#include<string>
 namespace reflect
 {
 	class RClass;
@@ -12,8 +11,10 @@ namespace reflect
 		virtual ~RObject()=default;
 		const RClass* SuperClass()const { return _SuperClass; }
 		std::string GetName()const { return std::string(_Name); }
+		size_t GetHashCode()const { return _HashCode; }
 	protected:
-		std::string _Name;//反射系统会在程序结束前一直运行，构建时传入的时字面量内存一直有效可以用string_view，同时也能防止修改
+		std::string _Name="";
 		RClass* _SuperClass = nullptr;
+		size_t _HashCode;
 	};
 }

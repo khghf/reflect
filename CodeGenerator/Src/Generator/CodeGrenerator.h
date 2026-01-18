@@ -15,7 +15,7 @@ namespace reflect
 		static const std::string include_angled(const std ::string &path);
 		static const std::string include_quotes(const std::string& path);
 		//自动添加.gen.h头文件包含到对应的.h文件
-		static void Push_backIncludeToFile(const std::string& filePath, const std ::string&includestr);
+		static void InsertIncludeToFile(const std::string& filePath, const std ::string&includestr);
 	};
 }
 

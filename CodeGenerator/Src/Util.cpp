@@ -45,6 +45,34 @@ namespace reflect
 		return ret;
 	}
 
+	bool Util::IsTargetHeaderCursor(CXCursor cursor, const std::string& targetHeaderName)
+	{
+		// 1. 获取光标对应的源文件位置
+		CXSourceLocation cursorLoc = clang_getCursorLocation(cursor);
+		if (clang_Location_isInSystemHeader(cursorLoc)) {
+			// 直接跳过系统头文件（如<iostream>）的光标
+			return false;
+		}
+
+		// 2. 提取光标所属的文件对象
+		CXFile cursorFile = nullptr;
+		clang_getSpellingLocation(cursorLoc, &cursorFile, nullptr, nullptr, nullptr);
+		if (cursorFile == nullptr) {
+			return false;
+		}
+		// 3. 获取光标所属文件的完整路径
+		CXString str= clang_getFileName(cursorFile);
+		const char* cursorFileNameCStr = clang_getCString(str);
+		if (cursorFileNameCStr == nullptr) {
+			return false;
+		}
+		std::string cursorFileName = GetFileName(cursorFileNameCStr,true);
+		//std::cout << cursorFileName << "11111"<<std::endl;
+		clang_disposeString(str);
+		// 5. 判定：仅当光标文件路径与目标文件路径完全一致时，返回true
+		return (cursorFileName == targetHeaderName);
+	}
+
 	void Util::GetCursorLocation(CXCursor cursor, uint32_t* out)
 	{
 		CXSourceLocation location=clang_getCursorLocation(cursor);
@@ -148,6 +176,13 @@ namespace reflect
 
 	
 
+	bool Util::IsDirectoryExist(const std::string filePath)
+	{
+		fs::path path(filePath);
+		if (fs::exists(filePath) && fs::is_directory(path))return true;
+		return false;
+	}
+
 	std::string Util::ModifySuffix(const std::string& source, const std::string& suffix)
 	{
 		std::string ret = source;
@@ -185,6 +220,14 @@ namespace reflect
 			}
 		}
 		return FilePaths;
+	}
+
+	std::string Util::NormalizeFilePath(const std::string path)
+	{
+		std::string ret = path;
+		ret = std::regex_replace(ret, std::regex(R"(\\\\)", std::regex::nosubs), " / ");
+		ret = std::regex_replace(ret, std::regex(R"(\\)", std::regex::nosubs), " / ");
+		return ret;
 	}
 
 	bool Util::SkipUtf8Bom(std::ifstream& file)

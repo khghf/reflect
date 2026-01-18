@@ -1,11 +1,7 @@
 ﻿#pragma once
-
-//#ifdef _MSC_VER // 仅对 MSVC 编译器生效
-//#pragma warning(push) // 保存当前警告状态
-//#pragma warning(disable: 4996) // 屏蔽 C4996 错误
-//#endif
 #include<clang-c/Index.h>
 #include<string_view>
+#include<vector>
 namespace reflect
 {
 	class CodeParser
@@ -15,8 +11,14 @@ namespace reflect
 		~CodeParser();
 		void Parse();
 		std::string m_ScanDirectory = "Src/test";
+		//获取类所属的命名空间，返回值的顺序是颠倒的
+		static std::vector<std::string>GetClassNameSpace(CXCursor classNode);
 	private:
 		void Parse(const std::string_view& filePath);
+
+
+
+
 		CXIndex m_Index;
 	};
 }
